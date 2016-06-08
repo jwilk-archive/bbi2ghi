@@ -1,0 +1,179 @@
+#!/usr/bin/python3
+
+# Copyright © 2016 Jakub Wilk <jwilk@jwilk.net>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the “Software”), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+import argparse
+import collections
+import io
+import json
+import operator
+import os
+import re
+import sys
+
+def strip_tz(date):
+    date = re.sub(r'([.][0-9]+)?[+]00:00\Z', '', date)
+    if len(date) != 19:
+        raise NotImplementedError('date {!r}'.format(date))
+    return date
+
+def extract_googlecode_reporter(message):
+    reporter = None
+    def extract(match):
+        nonlocal reporter
+        reporter = match.group(1)
+    message = re.sub(
+        '^Original issue reported on code.google.com by `([^`]+)` on .*',
+        extract, message,
+        flags=re.MULTILINE
+    )
+    return reporter, message
+
+def normalize_message(message):
+    message = message.replace('\r\n', '\n')
+    message = message.strip()
+    return message
+
+def migrate_commits(git_map, message):
+    def migrate(match):
+        s = match.group(0)
+        s = s.strip('r[]')
+        return git_map.get(s, s)
+    return re.sub(r'r?[0-9A-Fa-f]{8,}|\[[0-9A-Fa-f]{8,}\]', migrate, message)
+
+def process_file(options, file):
+    d = json.load(file)
+    comments = collections.defaultdict(list)
+    for comment in sorted(d['comments'], key=operator.itemgetter('id')):
+        issue = comment['issue']
+        comments[issue] += [comment]
+    for issue in sorted(d['issues'], key=operator.itemgetter('id')):
+        issue_id = issue['id']
+        print('## issue', issue_id)
+        print('## title', issue['title'])
+        print('## created-at', strip_tz(issue['created_on']))
+        print('## updated-at', strip_tz(issue['updated_on']))
+        labels = []
+        status = issue['status']
+        if status == 'open':
+            closed = False
+        elif status == 'resolved':
+            closed = True
+        elif status == 'invalid':
+            closed = True
+            labels += ['invalid']
+        elif status == 'on hold':
+            closed = False
+            labels += ['on-hold']
+        else:
+            raise NotImplementedError('status {!r}'.format(status))
+        if closed:
+            print('## closed')
+        kind = issue['kind']
+        if kind in {'bug', 'enhancement'}:
+            labels += [kind]
+        else:
+            raise NotImplementedError('kind {!r}'.format(kind))
+        if labels:
+            print('## labels', ' '.join(labels))
+        print()
+        reporter = issue['reporter']
+        message = issue['content']
+        (gc_reporter, message) = extract_googlecode_reporter(message)
+        if reporter is None:
+            if gc_reporter is None:
+                print('**Issue reported by anonymous at Bitbucket**:')
+            else:
+                print('**Issue reported by `{user}` at Google Code**:'.format(user=gc_reporter))
+            print()
+        else:
+            gh_reporter = options.user_map.get(reporter)
+            if gh_reporter is None:
+                print('**Issue reported by `{user}` at Bitbucket**:'.format(user=reporter))
+                print()
+            elif gh_reporter != options.user:
+                print('**Issue reported by @{user}**:'.format(user=gh_reporter))
+                print()
+        message = normalize_message(message)
+        message = migrate_commits(options.git_map, message)
+        print(message)
+        for comment in comments[issue_id]:
+            message = comment['content']
+            if message is None:
+                continue
+            print('## comment')
+            print('## created-at', strip_tz(issue['created_on']))
+            print()
+            commenter = comment['user']
+            (gc_commenter, message) = extract_googlecode_reporter(message)
+            if commenter is None:
+                if gc_commenter is None:
+                    print('**Comment submitted by anonymous at Bitbucket**:')
+                else:
+                    print('**Comment submitted by `{user}` at Google Code**:'.format(user=gc_commenter))
+                print()
+            else:
+                gh_commenter = options.user_map.get(commenter)
+                if gh_commenter is None:
+                    print('**Comment submitted by `{user}` at Bitbucket**:'.format(user=commenter))
+                    print()
+                elif gh_commenter != options.user:
+                    print('**Comment submitted by @{user}**:'.format(user=gh_commenter))
+                    print()
+            message = normalize_message(message)
+            message = migrate_commits(options.git_map, message)
+            print(message)
+
+def main():
+    ap = argparse.ArgumentParser()
+    myself = os.getenv('USER')
+    ap.add_argument('--user', '-u', metavar='USER', default=myself)
+    ap.add_argument('--user-map', metavar='FILE')
+    ap.add_argument('--git-map', metavar='FILE')
+    ap.add_argument('path', metavar='JSON-FILE', nargs='?')
+    options = ap.parse_args()
+    user_map = {}
+    if options.user_map is not None:
+        with open(options.user_map, 'rt', encoding='ASCII') as file:
+            for line in file:
+                (gh_user, bb_user) = line.split()
+                user_map[bb_user] = gh_user
+    options.user_map = user_map
+    git_map = {}
+    if options.git_map is not None:
+        with open(options.git_map, 'rt', encoding='ASCII') as file:
+            for line in file:
+                (git_commit, hg_commit) = line.split()
+                for i in range(8, len(hg_commit)):
+                    git_map[hg_commit[:i]] = git_commit
+    options.git_map = git_map
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='UTF-8')
+    if options.path is not None:
+        file = open(options.path, encoding='UTF-8')
+    else:
+        file = io.TextIOWrapper(sys.stdin.buffer, encoding='UTF-8')
+    with file:
+        process_file(options, file)
+
+if __name__ == '__main__':
+    main()
+
+# vim:ts=4 sts=4 sw=4 et

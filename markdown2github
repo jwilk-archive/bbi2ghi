@@ -1,0 +1,143 @@
+#!/usr/bin/python3
+
+# Copyright © 2016 Jakub Wilk <jwilk@jwilk.net>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the “Software”), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+import argparse
+import io
+import json
+import os
+import sys
+import time
+import urllib.request
+
+user_agent = 'bbi2ghi (https://github.com/jwilk/bbi2ghi)'
+content_type = 'application/vnd.github.golden-comet-preview+json'
+
+class JSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, io.StringIO):
+            return o.getvalue()
+        raise TypeError
+
+def read_json(file):
+    with file:
+        data = file.read()
+    data = data.decode('UTF-8')
+    return json.loads(data)
+
+def process_file(options, file):
+    issues = {}
+    issue = comment = obj = body = None
+    for line in file:
+        keyword = None
+        if line.startswith('## '):
+            _, keyword, *args = line.split(None, 2)
+        if args:
+            [arg] = args
+            arg = arg.strip()
+        else:
+            arg = None
+        if keyword is None:
+            body.write(line)
+        elif keyword == 'issue':
+            body = io.StringIO()
+            issue = obj = dict(body=body)
+            comments = []
+            issue_id = int(arg)
+            if issue_id in issues:
+                raise RuntimeError('duplicate issse {}'.format(issue_id))
+            issues[issue_id] = dict(issue=issue, comments=comments)
+        elif keyword == 'comment':
+            body = io.StringIO()
+            comment = obj = dict(body=body)
+            comments += [comment]
+        elif keyword == 'title':
+            obj[keyword] = arg
+        elif keyword in {'created-at', 'updated-at'}:
+            obj[keyword.replace('-', '_')] = arg + 'Z'
+        elif keyword == 'closed':
+            obj[keyword] = True
+        elif keyword == 'labels':
+            obj[keyword] = arg.split()
+    if options.repo is None:
+        json.dump(issues, sys.stdout, cls=JSONEncoder)
+    else:
+        auth_token = os.environ['GITHUB_TOKEN']
+        headers = {
+            'User-Agent': user_agent,
+            'Accept': content_type,
+            'Authorization': 'token {}'.format(auth_token)
+        }
+        for issue_id, issue in sorted(issues.items()):
+            print('creating issue {} ...'.format(issue_id), end='', file=sys.stderr)
+            sys.stderr.flush()
+            data = json.dumps(issue, cls=JSONEncoder).encode('UTF-8')
+            url = 'https://api.github.com/repos/{repo}/import/issues'.format(repo=options.repo)
+            request = urllib.request.Request(url, data=data, method='POST', headers=headers)
+            try:
+                fp = urllib.request.urlopen(request)
+            except urllib.error.HTTPError as exc:
+                print(read_json(fp), file=sys.stderr)
+                raise
+            response = read_json(fp)
+            delay = 0.5
+            while True:
+                status = response['status']
+                if status == 'imported':
+                    break
+                elif status == 'pending':
+                    time.sleep(delay)
+                    delay *= 1.5
+                else:
+                    raise RuntimeError('unexpected status {!r}'.format(status))
+                print('.', end='', file=sys.stderr)
+                sys.stderr.flush()
+                status_url = response['url']
+                if not status_url.startswith('https://api.github.com/'):
+                    raise RuntimeError('suspicious status URL {!r}'.format(status_url))
+                request = urllib.request.Request(status_url, headers=headers)
+                try:
+                    fp = urllib.request.urlopen(request)
+                except urllib.error.HTTPError as exc:
+                    print(read_json(fp), file=sys.stderr)
+                    raise
+                response = read_json(fp)
+            print(' ' + response['issue_url'], file=sys.stderr)
+            sys.stderr.flush()
+        print('', file=sys.stderr)
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('path', metavar='MARKDOWN-FILE', nargs='?')
+    ap.add_argument('--import-to', dest='repo', metavar='USER/REPO')
+    options = ap.parse_args()
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='UTF-8')
+    if options.path is not None:
+        file = open(options.path, encoding='UTF-8')
+    else:
+        file = io.TextIOWrapper(sys.stdin.buffer, encoding='UTF-8')
+    with file:
+        process_file(options, file)
+
+if __name__ == '__main__':
+    main()
+
+# vim:ts=4 sts=4 sw=4 et
