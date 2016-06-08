@@ -88,7 +88,8 @@ def process_file(options, file):
             print('## closed')
         kind = issue['kind']
         if kind in {'bug', 'enhancement'}:
-            labels += [kind]
+            if 'invalid' not in labels:
+                labels += [kind]
         else:
             raise NotImplementedError('kind {!r}'.format(kind))
         if labels:
