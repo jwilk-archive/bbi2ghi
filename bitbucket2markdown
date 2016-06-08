@@ -55,8 +55,7 @@ def normalize_message(message):
 def migrate_commits(git_map, message):
     def migrate(match):
         s = match.group(0)
-        s = s.lstrip('r')
-        return git_map.get(s, s)
+        return git_map.get(s.lstrip('r'), s)
     return re.sub(r'r?[0-9A-Fa-f]{8,}', migrate, message)
 
 def process_file(options, file):
