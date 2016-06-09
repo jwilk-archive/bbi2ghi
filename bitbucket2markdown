@@ -87,7 +87,7 @@ def process_file(options, file):
         if closed:
             print('## closed')
         kind = issue['kind']
-        if kind in {'bug', 'enhancement'}:
+        if kind in {'bug', 'enhancement', 'task'}:
             if 'invalid' not in labels:
                 labels += [kind]
         else:
