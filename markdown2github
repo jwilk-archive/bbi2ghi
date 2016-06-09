@@ -34,7 +34,7 @@ content_type = 'application/vnd.github.golden-comet-preview+json'
 class JSONEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, io.StringIO):
-            return o.getvalue()
+            return o.getvalue().strip()
         raise TypeError
 
 def read_json(file):
