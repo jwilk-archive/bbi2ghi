@@ -82,6 +82,9 @@ def process_file(options, file):
         elif status == 'on hold':
             closed = False
             labels += ['on-hold']
+        elif status == 'duplicate':
+            closed = True
+            labels += ['duplicate']
         else:
             raise NotImplementedError('status {!r}'.format(status))
         if closed:
