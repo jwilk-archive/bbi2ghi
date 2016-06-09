@@ -85,6 +85,9 @@ def process_file(options, file):
         elif status == 'duplicate':
             closed = True
             labels += ['duplicate']
+        elif status == 'wontfix':
+            closed = False
+            labels += ['wontfix']
         else:
             raise NotImplementedError('status {!r}'.format(status))
         if closed:
