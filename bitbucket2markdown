@@ -126,7 +126,7 @@ def process_file(options, file):
             if message is None:
                 continue
             print('## comment')
-            print('## created-at', strip_tz(issue['created_on']))
+            print('## created-at', strip_tz(comment['created_on']))
             print()
             commenter = comment['user']
             (gc_commenter, message) = extract_googlecode_reporter(message)
