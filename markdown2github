@@ -71,7 +71,7 @@ def process_file(options, file):
             comments += [comment]
         elif keyword == 'title':
             obj[keyword] = arg
-        elif keyword in {'created-at', 'updated-at'}:
+        elif keyword in {'created-at', 'updated-at', 'closed-at'}:
             obj[keyword.replace('-', '_')] = arg + 'Z'
         elif keyword == 'closed':
             obj[keyword] = True

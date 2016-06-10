@@ -61,6 +61,11 @@ def migrate_commits(git_map, message):
 def process_file(options, file):
     d = json.load(file)
     comments = collections.defaultdict(list)
+    status_changes = collections.defaultdict(list)
+    for log in sorted(d['logs'], key=operator.itemgetter('created_on')):
+        issue_id = log['issue']
+        if log['field'] == 'status':
+            status_changes[issue_id] += [log]
     for comment in sorted(d['comments'], key=operator.itemgetter('id')):
         issue = comment['issue']
         comments[issue] += [comment]
@@ -91,6 +96,15 @@ def process_file(options, file):
         else:
             raise NotImplementedError('status {!r}'.format(status))
         if closed:
+            try:
+                last_change = status_changes[issue_id][-1]
+            except IndexError:
+                try:
+                    last_change = comments[issue_id][-1]
+                except IndexError:
+                    last_change = None
+            if last_change is not None:
+                print('## closed-at', strip_tz(last_change['created_on']))
             print('## closed')
         kind = issue['kind']
         if kind in {'bug', 'enhancement', 'task'}:
