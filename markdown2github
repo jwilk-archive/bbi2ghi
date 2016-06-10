@@ -95,7 +95,7 @@ def process_file(options, file):
             try:
                 fp = urllib.request.urlopen(request)
             except urllib.error.HTTPError as exc:
-                print(read_json(fp), file=sys.stderr)
+                print(read_json(exc), file=sys.stderr)
                 raise
             response = read_json(fp)
             delay = 0.5
@@ -117,7 +117,7 @@ def process_file(options, file):
                 try:
                     fp = urllib.request.urlopen(request)
                 except urllib.error.HTTPError as exc:
-                    print(read_json(fp), file=sys.stderr)
+                    print(read_json(exc), file=sys.stderr)
                     raise
                 response = read_json(fp)
             print(' ' + response['issue_url'], file=sys.stderr)
