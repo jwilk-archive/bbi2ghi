@@ -131,6 +131,12 @@ def main():
     ag.add_argument('--dry-run', action='store_true')
     ag.add_argument('--import-to', dest='repo', metavar='USER/REPO')
     options = ap.parse_args()
+    if options.repo is None:
+        pass
+    elif len([c for c in options.repo if c == '/']) == 1:
+        pass
+    else:
+        ap.error('invalid repo name: ' + options.repo)
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='UTF-8')
     if options.path is not None:
         file = open(options.path, encoding='UTF-8')
