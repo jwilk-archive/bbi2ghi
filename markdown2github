@@ -63,7 +63,7 @@ def process_file(options, file):
             comments = []
             issue_id = int(arg)
             if issue_id in issues:
-                raise RuntimeError('duplicate issse {}'.format(issue_id))
+                raise RuntimeError('duplicate issue {}'.format(issue_id))
             issues[issue_id] = dict(issue=issue, comments=comments)
         elif keyword == 'comment':
             body = io.StringIO()
