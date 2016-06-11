@@ -58,6 +58,12 @@ def migrate_commits(git_map, message):
         return git_map.get(s.lstrip('r').lower(), s)
     return re.sub(r'r?[0-9A-Fa-f]{8,}', migrate, message)
 
+def is_message_empty(message):
+    return (
+        message is None or
+        '```\n(No text was entered with this change)\n```' in message
+    )
+
 def process_file(options, file):
     d = json.load(file)
     comments = collections.defaultdict(list)
@@ -137,7 +143,7 @@ def process_file(options, file):
         print(message)
         for comment in comments[issue_id]:
             message = comment['content']
-            if message is None:
+            if is_message_empty(message):
                 continue
             print('## comment')
             print('## created-at', strip_tz(comment['created_on']))
