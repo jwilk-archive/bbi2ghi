@@ -43,6 +43,9 @@ def read_json(file):
     data = data.decode('UTF-8')
     return json.loads(data)
 
+def urlopen(request):
+    return urllib.request.urlopen(request, cadefault=True)
+
 def process_file(options, file):
     issues = {}
     issue = comment = obj = body = None
@@ -93,7 +96,7 @@ def process_file(options, file):
             url = 'https://api.github.com/repos/{repo}/import/issues'.format(repo=options.repo)
             request = urllib.request.Request(url, data=data, method='POST', headers=headers)
             try:
-                fp = urllib.request.urlopen(request)
+                fp = urlopen(request)
             except urllib.error.HTTPError as exc:
                 print(read_json(exc), file=sys.stderr)
                 raise
@@ -115,7 +118,7 @@ def process_file(options, file):
                     raise RuntimeError('suspicious status URL {!r}'.format(status_url))
                 request = urllib.request.Request(status_url, headers=headers)
                 try:
-                    fp = urllib.request.urlopen(request)
+                    fp = urlopen(request)
                 except urllib.error.HTTPError as exc:
                     print(read_json(exc), file=sys.stderr)
                     raise
