@@ -83,7 +83,7 @@ def process_file(options, file):
         print('## updated-at', strip_tz(issue['updated_on']))
         labels = []
         status = issue['status']
-        if status == 'open':
+        if status in {'open', 'new'}:
             closed = False
         elif status == 'resolved':
             closed = True
