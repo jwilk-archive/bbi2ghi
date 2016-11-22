@@ -113,7 +113,7 @@ def process_file(options, file):
                 print('## closed-at', strip_tz(last_change['created_on']))
             print('## closed')
         kind = issue['kind']
-        if kind in {'bug', 'enhancement', 'task'}:
+        if kind in {'bug', 'enhancement', 'task', 'proposal'}:
             if 'invalid' not in labels:
                 labels += [kind]
         else:
