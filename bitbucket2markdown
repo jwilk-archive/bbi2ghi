@@ -128,7 +128,14 @@ def process_file(options, file):
             if gc_reporter is None:
                 print('**Issue reported by anonymous at Bitbucket**:')
             else:
-                print('**Issue reported by `{user}` at Google Code**:'.format(user=gc_reporter))
+                gc_reporter_email = gc_reporter
+                if '@' not in gc_reporter:
+                    gc_reporter_email += '@gmail.com'
+                gh_reporter = options.user_map.get(gc_reporter_email)
+                if gh_reporter is None:
+                    print('**Issue reported by `{user}` at Google Code**:'.format(user=gc_reporter))
+                else:
+                    print('**Issue reported by @{user}**:'.format(user=gh_reporter))
             print()
         else:
             gh_reporter = options.user_map.get(reporter)
@@ -154,7 +161,14 @@ def process_file(options, file):
                 if gc_commenter is None:
                     print('**Comment submitted by anonymous at Bitbucket**:')
                 else:
-                    print('**Comment submitted by `{user}` at Google Code**:'.format(user=gc_commenter))
+                    gc_commenter_email = gc_commenter
+                    if '@' not in gc_commenter:
+                        gc_commenter_email += '@gmail.com'
+                    gh_commenter = options.user_map.get(gc_commenter_email)
+                    if gh_commenter is None:
+                        print('**Comment submitted by `{user}` at Google Code**:'.format(user=gc_commenter))
+                    else:
+                        print('**Comment submitted by @{user}**:'.format(user=gh_commenter))
                 print()
             else:
                 gh_commenter = options.user_map.get(commenter)
