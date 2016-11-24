@@ -85,7 +85,7 @@ def process_file(options, file):
         status = issue['status']
         if status in {'open', 'new'}:
             closed = False
-        elif status == 'resolved':
+        elif status in {'resolved', 'closed'}:
             closed = True
         elif status == 'invalid':
             closed = True
