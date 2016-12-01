@@ -148,6 +148,7 @@ def process_file(options, file):
         message = normalize_message(message)
         message = migrate_commits(options.git_map, message)
         print(message)
+        print()
         for comment in comments[issue_id]:
             message = comment['content']
             if is_message_empty(message):
@@ -181,6 +182,7 @@ def process_file(options, file):
             message = normalize_message(message)
             message = migrate_commits(options.git_map, message)
             print(message)
+            print()
 
 def main():
     ap = argparse.ArgumentParser()
