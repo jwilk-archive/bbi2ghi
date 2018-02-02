@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# encoding=UTF-8
 
 # Copyright © 2016 Jakub Wilk <jwilk@jwilk.net>
 # SPDX-License-Identifier: MIT
@@ -10,6 +11,8 @@ import os
 import sys
 import time
 import urllib.request
+
+...  # Python 3 is required
 
 user_agent = 'bbi2ghi (https://github.com/jwilk/bbi2ghi)'
 content_type = 'application/vnd.github.golden-comet-preview+json'
