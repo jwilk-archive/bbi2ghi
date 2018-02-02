@@ -1,0 +1,17 @@
+language: python
+python:
+- "3.2"
+- "3.3"
+- "3.4"
+- "3.5"
+- "3.6"
+- "3.7-dev"
+install:
+- pip install pydiatra pyflakes
+script:
+- python3 -m pydiatra *2*
+- python3 -m pyflakes *2*
+- ./bitbucket2markdown --help
+- ./markdown2github --help
+
+# vim:ts=2 sts=2 sw=2 et
